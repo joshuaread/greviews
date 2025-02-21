@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 10px 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Search Results</h1>
+    <table>
+        <tr>
+            <th>Company Name</th>
+            <th>City/Location</th>
+            <th>Stars</th>
+            <th>Review Text</th>
+        </tr>
+        {% for result in results %}
+        <tr>
+            <td>{{ result.company_name }}</td>
+            <td>{{ result.location }}</td>
+            <td>{{ result.stars }}</td>
+            <td>{{ result.review_text }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <button onclick="exportToSheet()">Export to Google Sheet</button>
+    <script>
+        const results = {{ results | tojson }};
+        function exportToSheet() {
+            fetch('/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ results: results })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => alert('Export failed: ' + error));
+        }
+    </script>
+</body>
+</html>

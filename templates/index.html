@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Business Review Search</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { margin-bottom: 20px; }
+        label { margin-right: 10px; }
+        input[type="text"] { margin-right: 10px; padding: 5px; }
+        input[type="submit"] { padding: 5px 10px; }
+    </style>
+</head>
+<body>
+    <h1>Search for Businesses</h1>
+    <form method="POST">
+        <label for="zip_code">Zip Code:</label>
+        <input type="text" id="zip_code" name="zip_code" required>
+        <label for="search_term">Search Term:</label>
+        <input type="text" id="search_term" name="search_term" required>
+        <input type="submit" value="Search">
+    </form>
+</body>
+</html>
