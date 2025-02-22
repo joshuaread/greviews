@@ -1,4 +1,6 @@
 import os
+import base64
+import json
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -19,20 +21,15 @@ from google.oauth2.service_account import Credentials
 # Initialize Flask app
 app = Flask(__name__)
 
-# Load Google Maps API key from environment variables
-GOOGLE_MAPS_API_KEY = os.environ['GOOGLE_MAPS_API_KEY']
+# Load Google Maps API key from environment variables (already handled above, no need to redefine)
+# GOOGLE_MAPS_API_KEY = os.environ['GOOGLE_MAPS_API_KEY']  # Remove or comment this out to avoid redundancy
 
-# Set up Google Sheets client
-SCOPES = [
-    'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive'
-]
-SERVICE_ACCOUNT_FILE = 'service_account.json'  # Path to your service account JSON file
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE,
-                                              scopes=SCOPES)
+# Set up Google Sheets client using base64-decoded environment variable
+# Decode service account JSON from environment variable
+service_account_json = base64.b64decode(os.environ['SERVICE_ACCOUNT_JSON']).decode('utf-8')
+creds = Credentials.from_service_account_info(json.loads(service_account_json), scopes=['https://www.googleapis.com/auth/spreadsheets'])
 client = gspread.authorize(creds)
 sheet = client.open('DPC Reviews').sheet1  # Access the "DPC Reviews" sheet
-
 
 # Function to geocode a zip code into latitude and longitude
 def geocode_zip(zip_code):
@@ -43,18 +40,13 @@ def geocode_zip(zip_code):
         return location['lat'], location['lng']
     return None
 
-
 # Function to search for businesses near a location
-def search_places(lat,
-                  lng,
-                  search_term,
-                  radius=32186):  # 20 miles = ~32,186 meters
+def search_places(lat, lng, search_term, radius=32186):  # 20 miles = ~32,186 meters
     url = f'https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={lat},{lng}&radius={radius}&keyword={search_term}&key={GOOGLE_MAPS_API_KEY}'
     response = requests.get(url).json()
     if response['status'] == 'OK':
         return response['results']
     return []
-
 
 # Function to get detailed information, including reviews, for a place
 def get_place_details(place_id):
@@ -64,25 +56,24 @@ def get_place_details(place_id):
         return response['result']
     return None
 
-
 # Home route: Display the input form or process the search
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         zip_code = request.form['zip_code']
         search_term = request.form['search_term']
-
+        
         # Geocode the zip code
         location = geocode_zip(zip_code)
         if not location:
             return "Invalid zip code. Please try again.", 400
-
+        
         lat, lng = location
         # Search for businesses
         places = search_places(lat, lng, search_term)
         if not places:
             return "No businesses found for the given search term and zip code.", 404
-
+        
         # Collect results
         results = []
         for place in places:
@@ -95,14 +86,13 @@ def index():
                         'stars': review['rating'],
                         'review_text': review['text']
                     })
-
+        
         if not results:
             return "No reviews found for the businesses in this area.", 404
-
+        
         return render_template('results.html', results=results)
-
+    
     return render_template('index.html')
-
 
 # Export route: Push results to Google Sheet
 @app.route('/export', methods=['POST'])
@@ -110,11 +100,12 @@ def export():
     results = request.json['results']
     for result in results:
         sheet.append_row([
-            result['company_name'], result['location'], result['stars'],
+            result['company_name'],
+            result['location'],
+            result['stars'],
             result['review_text']
         ])
     return jsonify({"message": "Exported successfully"}), 200
 
-
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
